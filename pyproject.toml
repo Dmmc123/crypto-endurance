@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "crypto-endurance"
+version = "0.1.0"
+description = "TS Prediction"
+authors = ["Rus"]
+readme = "README.md"
+packages = [{include = "crypto_endurance"}]
+
+[tool.poetry.dependencies]
+python = "3.11.4"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
