@@ -1,3 +1,5 @@
+import yaml
+
 from ts.models.base import BaseNextDayPriceRegressor
 from typing import Any, Self
 from pathlib import Path
@@ -25,12 +27,16 @@ class TorchLSTM(nn.Module):
 class LSTMRegressor(BaseNextDayPriceRegressor):
     name: str = "lstm"
     n_indicators: int = 15
+    hidden_size: int = None
+    num_layers: int = None
 
     def _fit(self, x: Any, y: Any, params: dict) -> Self:
+        self.hidden_size = params["hidden_size"]
+        self.num_layers = params["num_layers"]
         self.model = TorchLSTM(
             input_size=self.n_indicators,
-            hidden_size=params["hidden_size"],
-            num_layers=params["num_layers"]
+            hidden_size=self.hidden_size,
+            num_layers=self.num_layers
         )
         optimizer = torch.optim.Adam(self.model.parameters(), lr=params["lr"])
         criterion = nn.MSELoss()
@@ -61,25 +67,49 @@ class LSTMRegressor(BaseNextDayPriceRegressor):
         return features, targets
 
     def save(self, weights_dir: str) -> None:
-        pass
+        Path(weights_dir).mkdir(exist_ok=True, parents=True)
+        model_params = {
+            "input_size": self.n_indicators,
+            "hidden_size": self.hidden_size,
+            "num_layers": self.num_layers
+        }
+        with open(f"{weights_dir}/lstm_params.yaml", "w") as f:
+            yaml.dump(model_params, f)
+        torch.save(self.model.state_dict(), f"{weights_dir}/{self.name}.pt")
 
     @classmethod
     def from_weights(cls, weights_dir: str) -> Self:
-        pass
+        with open(f"{weights_dir}/lstm_params.yaml", "r") as f:
+            model_params = yaml.safe_load(f)
+        model = TorchLSTM(**model_params)
+        model.load_state_dict(torch.load(f"{weights_dir}/lstm.pt"))
+        return cls(
+            hidden_size=model_params["hidden_size"],
+            num_layers=model_params["num_layers"],
+            model=model
+        )
 
 
 if __name__ == "__main__":
     lstm_reg = LSTMRegressor()
     df = pd.read_csv("datasets/BTC-USD.csv")
     x, y = lstm_reg.df_to_samples(df=df, target_col="Close", include_targets=True)
-    wandb_config = {
-        "log_run": True,
-        "proj_name": "crypto-lstm-regressor"
-    }
-    lstm_reg.sample_grid_search(
-        df=df,
-        target_col="Close",
-        grid_config_path="ts/configs/lstm/grid.yaml",
-        wandb_config=wandb_config,
-        n_samples=50
-    )
+    # wandb_config = {
+    #     "log_run": False,
+    #     "proj_name": "crypto-lstm-regressor"
+    # }
+    # lstm_reg.sample_grid_search(
+    #     df=df,
+    #     target_col="Close",
+    #     grid_config_path="ts/configs/lstm/grid.yaml",
+    #     wandb_config=wandb_config,
+    #     n_samples=50
+    # )
+    with open("ts/configs/lstm/best.yaml", "r") as f:
+        params = yaml.safe_load(f)
+    lstm_reg.fit(x=x, y=y, params=params)
+    lstm_reg.save(weights_dir="weights")
+    res = lstm_reg.predict(x)
+    lstm_reg_2 = lstm_reg.from_weights(weights_dir="weights")
+    res_2 = lstm_reg_2.predict(x)
+    assert (res == res_2).all()

@@ -34,9 +34,11 @@ class BaseNextDayPriceRegressor(BaseModel, ABC):
             x: Any,
             y: Any,
             params: dict,
-            wandb_config: dict[str, str],
+            wandb_config: dict[str, str] = None,
             x_dev: Any = None,
             y_dev: Any = None) -> Self:
+        if wandb_config is None:
+            wandb_config = {}
         run = None
         if wandb_config.get("log_run", False):
             if "proj_name" not in wandb_config:
