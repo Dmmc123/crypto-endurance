@@ -48,20 +48,14 @@ if __name__ == "__main__":
     random_forest = RandomForestRegressor()
     df = pd.read_csv("datasets/BTC-USD.csv")
     wandb_config = {
-        "log_run": False,
-        "proj_name": "crypto-random-forest"
+        "log_run": True,
+        "proj_name": "crypto-random-forest",
+        "run_tag": "test"
     }
-    params = {
-        'colsample_bynode': 0.8,
-        'learning_rate': 1,
-        'max_depth': 5,
-        'num_parallel_tree': 100,
-        'objective': 'reg:squarederror',
-        'subsample': 0.8,
-        'tree_method': 'gpu_hist'
-    }
-    x, y = random_forest.df_to_samples(df=df, target_col="Close", include_targets=True)
-    random_forest.fit(x=x, y=y, params=params, wandb_config=wandb_config)
-    random_forest.save("weights")
-    rf2 = RandomForestRegressor.from_weights("weights")
-    print(rf2)
+    metrics = random_forest.test(
+        df=df,
+        target_col="Close",
+        config_path="ts/configs/random_forest/best.yaml",
+        wandb_config=wandb_config
+    )
+    print(metrics)
