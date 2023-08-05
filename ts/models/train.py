@@ -17,11 +17,10 @@ def main() -> None:
     python -m ts.models.train \
        --csv-path datasets/BTC-USD.csv \
        --model-type gbr \
-       --config-path ts/configs/gradient_boosting/best.yaml \
-       --save-dir weights \
+       --config-path ts/configs/gradient_boosting/grid.yaml \
+       --grid \
        --log-wandb \
-       --wandb-proj crypto-gradient-boosting \
-       --wandb-tag test
+       --wandb-proj crypto-gradient-boosting
     """
     model_classes = {
         "gbr": GradientBoostingRegressor,
@@ -52,8 +51,8 @@ def main() -> None:
         help="Path to the `.yaml` config file of either grid (in case of `--grid`) of model itself"
     )
     parser.add_argument(
-        "--save-dir", required=True,
-        help="Path to save the model file"
+        "--save-dir", required=False,
+        help="Path to save the model file. Not required for `--grid`"
     )
     parser.add_argument(
         "--log-wandb", action="store_true", default=False, required=False,
