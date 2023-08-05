@@ -42,20 +42,3 @@ class RandomForestRegressor(BaseNextDayPriceRegressor):
         model = xgb.core.Booster()
         model.load_model(f"{weights_dir}/random_forest.json")
         return cls(model=model)
-
-
-if __name__ == "__main__":
-    random_forest = RandomForestRegressor()
-    df = pd.read_csv("datasets/BTC-USD.csv")
-    wandb_config = {
-        "log_run": True,
-        "proj_name": "crypto-random-forest",
-        "run_tag": "test"
-    }
-    metrics = random_forest.test(
-        df=df,
-        target_col="Close",
-        config_path="ts/configs/random_forest/best.yaml",
-        wandb_config=wandb_config
-    )
-    print(metrics)

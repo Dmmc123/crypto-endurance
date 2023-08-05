@@ -44,19 +44,3 @@ class PerceptronRegressor(BaseNextDayPriceRegressor):
     def from_weights(cls, weights_dir: str) -> Self:
         model = joblib.load(f"{weights_dir}/mlp.pkl")
         return cls(model=model)
-
-
-if __name__ == "__main__":
-    reg = PerceptronRegressor()
-    df = pd.read_csv("datasets/BTC-USD.csv")
-    wandb_config = {
-        "log_run": True,
-        "proj_name": "crypto-mlp-regressor"
-    }
-    reg.sample_grid_search(
-        df=df,
-        target_col="Close",
-        grid_config_path="ts/configs/mlp/grid.yaml",
-        wandb_config=wandb_config,
-        n_samples=50
-    )

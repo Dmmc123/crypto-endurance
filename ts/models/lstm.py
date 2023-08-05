@@ -88,28 +88,3 @@ class LSTMRegressor(BaseNextDayPriceRegressor):
             num_layers=model_params["num_layers"],
             model=model
         )
-
-
-if __name__ == "__main__":
-    lstm_reg = LSTMRegressor()
-    df = pd.read_csv("datasets/BTC-USD.csv")
-    x, y = lstm_reg.df_to_samples(df=df, target_col="Close", include_targets=True)
-    # wandb_config = {
-    #     "log_run": False,
-    #     "proj_name": "crypto-lstm-regressor"
-    # }
-    # lstm_reg.sample_grid_search(
-    #     df=df,
-    #     target_col="Close",
-    #     grid_config_path="ts/configs/lstm/grid.yaml",
-    #     wandb_config=wandb_config,
-    #     n_samples=50
-    # )
-    with open("ts/configs/lstm/best.yaml", "r") as f:
-        params = yaml.safe_load(f)
-    lstm_reg.fit(x=x, y=y, params=params)
-    lstm_reg.save(weights_dir="weights")
-    res = lstm_reg.predict(x)
-    lstm_reg_2 = lstm_reg.from_weights(weights_dir="weights")
-    res_2 = lstm_reg_2.predict(x)
-    assert (res == res_2).all()

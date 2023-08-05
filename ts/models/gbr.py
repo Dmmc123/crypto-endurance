@@ -43,19 +43,3 @@ class GradientBoostingRegressor(BaseNextDayPriceRegressor):
         model = xgb.core.Booster()
         model.load_model(f"{weights_dir}/gbr.json")
         return cls(model=model)
-
-
-if __name__ == "__main__":
-    gbr = GradientBoostingRegressor()
-    df = pd.read_csv("datasets/BTC-USD.csv")
-    wandb_config = {
-        "log_run": True,
-        "proj_name": "crypto-gradient-boosting"
-    }
-    gbr.sample_grid_search(
-        df=df,
-        target_col="Close",
-        grid_config_path="ts/configs/gradient_boosting/grid.yaml",
-        wandb_config=wandb_config,
-        n_samples=50
-    )
