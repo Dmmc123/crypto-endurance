@@ -44,7 +44,8 @@ class BaseNextDayPriceRegressor(BaseModel, ABC):
             if "proj_name" not in wandb_config:
                 raise ValueError("`wandb_config` should have `proj_name` specified if run is to be logged")
             run = wandb.init(project=wandb_config["proj_name"], config=params)
-            if "run_tag" in wandb_config:
+            run_tag = wandb_config.get("run_tag", None)
+            if run_tag is not None:
                 run.tags += (wandb_config["run_tag"],)
         self._fit(x=x, y=y, params=params)
         if run is not None:
