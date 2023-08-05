@@ -11,6 +11,18 @@ import yaml
 
 
 def main() -> None:
+    """
+    Example script:
+
+    python -m ts.models.train \
+       --csv-path datasets/BTC-USD.csv \
+       --model-type gbr \
+       --config-path ts/configs/gradient_boosting/best.yaml \
+       --save-dir weights \
+       --log-wandb \
+       --wandb-proj crypto-gradient-boosting \
+       --wandb-tag test
+    """
     model_classes = {
         "gbr": GradientBoostingRegressor,
         "rf": RandomForestRegressor,
