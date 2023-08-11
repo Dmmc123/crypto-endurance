@@ -3,7 +3,7 @@ from ts.models import (
     GradientBoostingRegressor,
     RandomForestRegressor,
     LinearRegressor,
-    MLPRegressor,
+    PerceptronRegressor,
     LSTMRegressor
 )
 import pandas as pd
@@ -16,17 +16,17 @@ def main() -> None:
 
     python -m ts.models.test \
        --csv-path datasets/BTC-USD.csv \
-       --model-type gbr \
-       --config-path ts/configs/gradient_boosting/best.yaml \
+       --model-type ar \
+       --config-path ts/configs/linear_model/best.yaml \
        --log-wandb \
-       --wandb-proj crypto-gradient-boosting \
+       --wandb-proj crypto-linear-regressor \
        --wandb-tag test
     """
     model_classes = {
         "gbr": GradientBoostingRegressor,
         "rf": RandomForestRegressor,
         "ar": LinearRegressor,
-        "mlp": MLPRegressor,
+        "mlp": PerceptronRegressor,
         "lstm": LSTMRegressor
     }
     parser = argparse.ArgumentParser()
