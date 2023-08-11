@@ -1,6 +1,6 @@
-hidden_size: 20
+hidden_size: 32
 input_size: 15
-num_layers: 1
+num_layers: 2
 scalers:
   x:
     mean:
