@@ -64,7 +64,7 @@ class BaseNextDayPriceRegressor(BaseModel, ABC):
                            df: pd.DataFrame,
                            target_col: str,
                            grid_config_path: str,
-                           wandb_config: dict[str, str] = None,
+                           wandb_config: dict = None,
                            n_samples: int = 100,
                            reserve_test_samples: bool = True) -> None:
         if reserve_test_samples:
@@ -98,7 +98,7 @@ class BaseNextDayPriceRegressor(BaseModel, ABC):
              df: pd.DataFrame,
              target_col: str,
              config_path: str,
-             wandb_config: dict[str, str] = None) -> dict[str, float]:
+             wandb_config: dict = None) -> dict[str, float]:
         with open(config_path, "r") as f:
             params = yaml.safe_load(f)
         metrics = {
