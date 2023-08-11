@@ -44,7 +44,8 @@ class BaseNextDayPriceRegressor(BaseModel, ABC):
             if "proj_name" not in wandb_config:
                 raise ValueError("`wandb_config` should have `proj_name` specified if run is to be logged")
             run = wandb.init(project=wandb_config["proj_name"], config=params)
-            if "run_tag" in wandb_config:
+            run_tag = wandb_config.get("run_tag", None)
+            if run_tag is not None:
                 run.tags += (wandb_config["run_tag"],)
         self._fit(x=x, y=y, params=params)
         if run is not None:
@@ -63,8 +64,11 @@ class BaseNextDayPriceRegressor(BaseModel, ABC):
                            df: pd.DataFrame,
                            target_col: str,
                            grid_config_path: str,
-                           wandb_config: dict[str, str],
-                           n_samples: int = 100) -> None:
+                           wandb_config: dict = None,
+                           n_samples: int = 100,
+                           reserve_test_samples: bool = True) -> None:
+        if reserve_test_samples:
+            df = df.iloc[:-self.test_days]
         x, y = self.df_to_samples(df=df, target_col=target_col, include_targets=True)
         x_train, x_dev, y_train, y_dev = train_test_split(x, y, shuffle=False, test_size=self.test_days)
         with open(grid_config_path, "r") as f:
@@ -89,6 +93,39 @@ class BaseNextDayPriceRegressor(BaseModel, ABC):
             f"{prefix}rmse": mean_squared_error(y_true=y_true, y_pred=y_hat, squared=False),
             f"{prefix}mape": mean_absolute_percentage_error(y_true=y_true, y_pred=y_hat)
         }
+
+    def test(self,
+             df: pd.DataFrame,
+             target_col: str,
+             config_path: str,
+             wandb_config: dict = None) -> dict[str, float]:
+        with open(config_path, "r") as f:
+            params = yaml.safe_load(f)
+        metrics = {
+            "rmse": [],
+            "mape": []
+        }
+        for i in tqdm.tqdm(range(self.test_days), "Training models for testing"):
+            if i == 0:
+                cur_df = df.copy()
+            else:
+                cur_df = df.iloc[:-i]
+            x, y = self.df_to_samples(df=cur_df, target_col=target_col, include_targets=True)
+            x_train, x_test_1s, y_train, y_test_1s = train_test_split(x, y, shuffle=False, test_size=1)
+            self.fit(
+                x=x_train,
+                y=y_train,
+                params=params,
+                wandb_config=wandb_config,
+                x_dev=x_test_1s,
+                y_dev=y_test_1s
+            )
+            cur_metrics = self.evaluate(x=x_test_1s, y_true=y_test_1s)
+            metrics["rmse"].append(cur_metrics["rmse"])
+            metrics["mape"].append(cur_metrics["mape"])
+        metrics["rmse"] = sum(metrics["rmse"]) / len(metrics["rmse"])
+        metrics["mape"] = sum(metrics["mape"]) / len(metrics["mape"])
+        return metrics
 
     @abstractmethod
     def df_to_samples(self, df: pd.DataFrame, target_col: str, include_targets: bool) -> tuple[Any, Any]:

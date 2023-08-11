@@ -3,7 +3,6 @@ name = "crypto-endurance"
 version = "0.1.0"
 description = "TS Prediction"
 authors = ["Rus"]
-readme = "README.md"
 packages = [ { include = "ts" } ]
 
 [tool.poetry.dependencies]

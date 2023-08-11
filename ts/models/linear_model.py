@@ -40,19 +40,3 @@ class LinearRegressor(BaseNextDayPriceRegressor):
     def from_weights(cls, weights_dir: str) -> Self:
         model = joblib.load(f"{weights_dir}/linear_model.pkl")
         return cls(model=model)
-
-
-if __name__ == "__main__":
-    reg = LinearRegressor()
-    df = pd.read_csv("datasets/BTC-USD.csv")
-    wandb_config = {
-        "log_run": True,
-        "proj_name": "crypto-linear-regressor"
-    }
-    reg.sample_grid_search(
-        df=df,
-        target_col="Close",
-        grid_config_path="ts/configs/linear_model/grid.yaml",
-        wandb_config=wandb_config,
-        n_samples=50
-    )

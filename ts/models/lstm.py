@@ -1,3 +1,4 @@
+import tqdm
 import yaml
 
 from ts.models.base import BaseNextDayPriceRegressor
@@ -14,7 +15,12 @@ class TorchLSTM(nn.Module):
 
     def __init__(self, input_size: int, hidden_size: int, num_layers: int) -> None:
         super().__init__()
-        self.lstm = nn.LSTM(input_size=input_size, hidden_size=hidden_size, num_layers=num_layers, batch_first=True)
+        self.lstm = nn.LSTM(
+            input_size=input_size,
+            hidden_size=hidden_size,
+            num_layers=num_layers,
+            batch_first=True
+        )
         self.fc = nn.Linear(hidden_size, 1)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -29,8 +35,22 @@ class LSTMRegressor(BaseNextDayPriceRegressor):
     n_indicators: int = 15
     hidden_size: int = None
     num_layers: int = None
+    x_mean: Any = None
+    x_std: Any = None
+    y_mean: Any = None
+    y_std: Any = None
 
     def _fit(self, x: Any, y: Any, params: dict) -> Self:
+        # data standardization
+        x_flat = x.view(-1, self.n_indicators)
+        self.x_mean = x_flat.mean(dim=0)
+        self.x_std = x_flat.std(dim=0)
+        x = (x - self.x_mean) / self.x_std
+        self.y_mean = y.mean()
+        self.y_std = y.std()
+        y = (y - self.y_mean) / self.y_std
+        # training
+        y = y.view(-1, 1)
         self.hidden_size = params["hidden_size"]
         self.num_layers = params["num_layers"]
         self.model = TorchLSTM(
@@ -38,18 +58,21 @@ class LSTMRegressor(BaseNextDayPriceRegressor):
             hidden_size=self.hidden_size,
             num_layers=self.num_layers
         )
-        optimizer = torch.optim.Adam(self.model.parameters(), lr=params["lr"])
+        optimizer = torch.optim.Adam(self.model.lstm.parameters(), lr=params["lr"])
         criterion = nn.MSELoss()
-        for _ in range(params["epochs"]):
-            preds = self.model(x)
+        for _ in tqdm.tqdm(range(params["epochs"]), desc="Training LSTM"):
             optimizer.zero_grad()
+            preds = self.model(x)
             loss = criterion(preds, y)
             loss.backward()
             optimizer.step()
         return self
 
     def predict(self, x: Any) -> Any:
-        return self.model(x).view(-1).detach().numpy()
+        x = (x - self.x_mean) / self.x_std
+        y = self.model(x).view(-1).detach()
+        y = self.y_std * y + self.y_mean
+        return y.numpy()
 
     def df_to_samples(self, df: pd.DataFrame, target_col: str, include_targets: bool) -> tuple[Any, Any]:
         df = df.drop(columns=["Date"])
@@ -63,7 +86,7 @@ class LSTMRegressor(BaseNextDayPriceRegressor):
             return features, targets
         features = features[:-1]
         targets = df[target_col].values[self.look_back_days + 1:]
-        targets = torch.tensor(targets).view(-1, 1).float()
+        targets = torch.tensor(targets).float()
         return features, targets
 
     def save(self, weights_dir: str) -> None:
@@ -71,7 +94,17 @@ class LSTMRegressor(BaseNextDayPriceRegressor):
         model_params = {
             "input_size": self.n_indicators,
             "hidden_size": self.hidden_size,
-            "num_layers": self.num_layers
+            "num_layers": self.num_layers,
+            "scalers": {
+                "x": {
+                    "mean": self.x_mean.tolist(),
+                    "std": self.x_std.tolist()
+                },
+                "y": {
+                    "mean": self.y_mean.item(),
+                    "std": self.y_std.item()
+                }
+            }
         }
         with open(f"{weights_dir}/lstm_params.yaml", "w") as f:
             yaml.dump(model_params, f)
@@ -81,35 +114,43 @@ class LSTMRegressor(BaseNextDayPriceRegressor):
     def from_weights(cls, weights_dir: str) -> Self:
         with open(f"{weights_dir}/lstm_params.yaml", "r") as f:
             model_params = yaml.safe_load(f)
-        model = TorchLSTM(**model_params)
+        model = TorchLSTM(
+            input_size=model_params["input_size"],
+            hidden_size=model_params["hidden_size"],
+            num_layers=model_params["num_layers"]
+        )
         model.load_state_dict(torch.load(f"{weights_dir}/lstm.pt"))
         return cls(
+            model=model,
+            n_indicators=model_params["input_size"],
             hidden_size=model_params["hidden_size"],
             num_layers=model_params["num_layers"],
-            model=model
+            x_mean=torch.tensor(model_params["scalers"]["x"]["mean"]),
+            x_std=torch.tensor(model_params["scalers"]["x"]["std"]),
+            y_mean=torch.tensor(model_params["scalers"]["y"]["mean"]),
+            y_std=torch.tensor(model_params["scalers"]["y"]["std"])
         )
 
 
 if __name__ == "__main__":
-    lstm_reg = LSTMRegressor()
+    lstm = LSTMRegressor()
     df = pd.read_csv("datasets/BTC-USD.csv")
-    x, y = lstm_reg.df_to_samples(df=df, target_col="Close", include_targets=True)
-    # wandb_config = {
-    #     "log_run": False,
-    #     "proj_name": "crypto-lstm-regressor"
-    # }
-    # lstm_reg.sample_grid_search(
-    #     df=df,
-    #     target_col="Close",
-    #     grid_config_path="ts/configs/lstm/grid.yaml",
-    #     wandb_config=wandb_config,
-    #     n_samples=50
-    # )
-    with open("ts/configs/lstm/best.yaml", "r") as f:
-        params = yaml.safe_load(f)
-    lstm_reg.fit(x=x, y=y, params=params)
-    lstm_reg.save(weights_dir="weights")
-    res = lstm_reg.predict(x)
-    lstm_reg_2 = lstm_reg.from_weights(weights_dir="weights")
-    res_2 = lstm_reg_2.predict(x)
-    assert (res == res_2).all()
+    x, y = lstm.df_to_samples(df=df, target_col="Close", include_targets=True)
+    lstm.fit(
+        x=x, y=y,
+        params={
+            "hidden_size": 20,
+            "num_layers": 1,
+            "epochs": 500,
+            "lr": 0.05,
+        },
+        wandb_config={"log_run": False}
+    )
+    metrics = lstm.evaluate(x=x, y_true=y)
+    y_pred = lstm.predict(x)
+    print(y_pred[0], y_pred[-1])
+    lstm.save(weights_dir="weights")
+    lstm_2 = LSTMRegressor.from_weights(weights_dir="weights")
+    y_pred_2 = lstm_2.predict(x)
+    print(y_pred_2[0], y_pred_2[-1])
+
