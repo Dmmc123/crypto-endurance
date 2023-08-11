@@ -1,0 +1,6 @@
+hidden_layers:
+  - 50
+  - 100
+  - 50
+activation: relu
+alpha: 0.0001

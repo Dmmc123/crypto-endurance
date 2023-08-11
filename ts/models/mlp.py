@@ -1,5 +1,7 @@
 from ts.models.base import BaseNextDayPriceRegressor
+from sklearn.preprocessing import StandardScaler
 from sklearn.neural_network import MLPRegressor
+from sklearn.pipeline import Pipeline
 from typing import Self, Any
 from pathlib import Path
 
@@ -12,11 +14,18 @@ class PerceptronRegressor(BaseNextDayPriceRegressor):
     name: str = "mlp"
 
     def _fit(self, x: Any, y: Any, params: dict) -> Self:
-        new_params = {k: v for k, v in params.items() if k != "hidden_layer_size"}
-        self.model = MLPRegressor(
-            hidden_layer_sizes=(params["hidden_layer_size"],),
-            **new_params
-        ).fit(x, y)
+        new_params = {k: v for k, v in params.items() if k != "hidden_layers"}
+        self.model = Pipeline([
+            ("scaler", StandardScaler()),
+            (
+                "regressor",
+                MLPRegressor(
+                    hidden_layer_sizes=params["hidden_layers"],
+                    **new_params
+                )
+            )
+        ])
+        self.model.fit(x, y)
         return self
 
     def predict(self, x: Any) -> Any:
