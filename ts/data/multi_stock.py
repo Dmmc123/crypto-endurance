@@ -81,7 +81,7 @@ class MultiAssetDataCollector(BaseModel):
         tickers = [f"{ticker}-USD" for ticker in tickers]
         stocks = yf.Tickers(tickers)
         prices_df = stocks.history(period="max", interval="1d")
-        return prices_df
+        return prices_df["Close"]
 
 
 def main() -> None:
