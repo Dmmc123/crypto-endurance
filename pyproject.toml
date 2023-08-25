@@ -20,6 +20,7 @@ tqdm = "^4.65.0"
 streamlit = "^1.24.1"
 pyyaml = "^6.0.1"
 torch = {url = "https://download.pytorch.org/whl/cpu/torch-2.0.1%2Bcpu-cp311-cp311-linux_x86_64.whl"}
+selenium = "^4.11.2"
 
 [build-system]
 requires = ["poetry-core"]
