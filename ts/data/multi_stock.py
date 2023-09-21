@@ -14,11 +14,11 @@ from pathlib import Path
 class MultiAssetDataCollector(BaseModel):
     candidate_symbols_url: str = "https://rest.coinapi.io/v1/symbols"
 
-    def get_top_assets_by_volume(self, output_dir: str, n_assets: int = 500) -> None:
+    def get_top_assets_by_volume(self, output_dir: str, n_assets: int = 100) -> None:
         symbols_df = self._get_candidate_tickers_df()
         symbols_df = self._filter_unavailable_data(df=symbols_df)
         prices_df = self._get_prices_df_by_tickers(tickers=symbols_df.index.tolist()[:n_assets])
-        prices_df.to_csv(Path(output_dir) / "prices.csv")
+        prices_df.to_csv(Path(output_dir) / "multi_stock.csv")
 
     def _get_candidate_tickers_df(self) -> pd.DataFrame:
         raw_symbol_data = self._get_raw_symbol_data()
@@ -35,7 +35,7 @@ class MultiAssetDataCollector(BaseModel):
         symbols = []
         seen = set()
         for symbol_info in json_data:
-            if "volume_1mth_usd" in symbol_info \
+            if "volume_1day_usd" in symbol_info \
                     and symbol_info["asset_id_quote"] == "USD" \
                     and symbol_info["asset_id_base"] not in seen \
                     and "USD" not in symbol_info["asset_id_base"] \
@@ -43,13 +43,13 @@ class MultiAssetDataCollector(BaseModel):
                     and symbol_info["asset_id_base"] not in {"JW", "LADYS"}:
                 symbols.append({
                     "ticker": symbol_info["asset_id_base"],
-                    "volume_1mth_usd": symbol_info["volume_1mth_usd"]
+                    "volume_1day_usd": symbol_info["volume_1day_usd"]
                 })
                 seen.add(symbol_info["asset_id_base"])
         # index df by ticker and sort by trading volume
         symbols_df = pd.DataFrame.from_records(data=symbols)
         symbols_df.set_index("ticker", inplace=True)
-        symbols_df.sort_values(by="volume_1mth_usd", inplace=True, ascending=False)
+        symbols_df.sort_values(by="volume_1day_usd", inplace=True, ascending=False)
         return symbols_df
 
     def _filter_unavailable_data(self, df: pd.DataFrame) -> pd.DataFrame:
