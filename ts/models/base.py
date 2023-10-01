@@ -1,6 +1,6 @@
 from sklearn.metrics import mean_squared_error, mean_absolute_percentage_error
 from sklearn.model_selection import train_test_split
-from typing import Self, Union, Any
+from typing import Self, Any
 from abc import ABC, abstractmethod
 from pydantic import BaseModel
 from itertools import product

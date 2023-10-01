@@ -17,7 +17,8 @@ class MultiAssetDataCollector(BaseModel):
     def get_top_assets_by_volume(self, output_dir: str, n_assets: int = 100) -> None:
         symbols_df = self._get_candidate_tickers_df()
         symbols_df = self._filter_unavailable_data(df=symbols_df)
-        prices_df = self._get_prices_df_by_tickers(tickers=symbols_df.index.tolist()[:n_assets])
+        prices_df = self._get_prices_df_by_tickers(tickers=symbols_df.index.tolist())
+        prices_df = self._filter_empty_columns(df=prices_df, n_assets=n_assets)
         prices_df.to_csv(Path(output_dir) / "multi_stock.csv")
 
     def _get_candidate_tickers_df(self) -> pd.DataFrame:
@@ -34,13 +35,14 @@ class MultiAssetDataCollector(BaseModel):
     def _candidate_df_from_raw(self, json_data: dict) -> pd.DataFrame:
         symbols = []
         seen = set()
+        stop_tickers = {"LTC", "NVC", "POLIS"}
         for symbol_info in json_data:
             if "volume_1day_usd" in symbol_info \
                     and symbol_info["asset_id_quote"] == "USD" \
                     and symbol_info["asset_id_base"] not in seen \
                     and "USD" not in symbol_info["asset_id_base"] \
                     and "EUR" not in symbol_info["asset_id_base"] \
-                    and symbol_info["asset_id_base"] not in {"JW", "LADYS"}:
+                    and symbol_info["asset_id_base"] not in stop_tickers:
                 symbols.append({
                     "ticker": symbol_info["asset_id_base"],
                     "volume_1day_usd": symbol_info["volume_1day_usd"]
@@ -83,6 +85,10 @@ class MultiAssetDataCollector(BaseModel):
         prices_df = stocks.history(period="max", interval="1d")
         return prices_df["Close"]
 
+    def _filter_empty_columns(self, df: pd.DataFrame, n_assets: int) -> pd.DataFrame:
+        most_full_cols = df.isna().sum().nsmallest(n_assets).index
+        return df[most_full_cols]
+
 
 def main() -> None:
     # define arguments
@@ -98,10 +104,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
-
